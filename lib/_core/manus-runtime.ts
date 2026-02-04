@@ -6,13 +6,16 @@
  * 2. Send 'appDevServerReady' to parent to signal app is ready
  *
  * User will manually login via the app's login page - no automatic cookie injection.
+ * 
+ * NOTE: For standalone APK/iOS builds, this runtime is effectively no-op.
+ * All functions check for web platform and iframe context before executing.
  */
 
 import { Platform } from "react-native";
 import type { Metrics } from "react-native-safe-area-context";
 
-// Debug logging with timestamps
-const DEBUG = true;
+// Debug logging with timestamps (disabled in production builds)
+const DEBUG = __DEV__ ?? false;
 const log = (msg: string) => {
   if (!DEBUG) return;
   const ts = new Date().toISOString();

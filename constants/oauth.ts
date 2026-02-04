@@ -26,17 +26,33 @@ export const API_BASE_URL = env.apiBaseUrl;
 
 /**
  * Get the API base URL, deriving from current hostname if not set.
- * Metro runs on 8081, API server runs on 3000.
- * URL pattern: https://PORT-sandboxid.region.domain
+ * 
+ * For production/standalone APK builds:
+ * - Set EXPO_PUBLIC_API_BASE_URL environment variable to your production API URL
+ * 
+ * For development (sandbox):
+ * - Metro runs on 8081, API server runs on 3000
+ * - URL pattern: https://PORT-sandboxid.region.domain
  */
 export function getApiBaseUrl(): string {
-  // If API_BASE_URL is set, use it
+  // If API_BASE_URL is set, use it (production builds should use this)
   if (API_BASE_URL) {
     return API_BASE_URL.replace(/\/$/, "");
   }
 
+  // Native platforms (Android/iOS) - require explicit API URL configuration
+  if (ReactNative.Platform.OS !== "web") {
+    // For native builds, if no API_BASE_URL is configured,
+    // the app will work in offline mode with local data only
+    console.warn(
+      "[OAuth] No API_BASE_URL configured for native platform. " +
+      "Set EXPO_PUBLIC_API_BASE_URL for full functionality."
+    );
+    return "";
+  }
+
   // On web, derive from current hostname by replacing port 8081 with 3000
-  if (ReactNative.Platform.OS === "web" && typeof window !== "undefined" && window.location) {
+  if (typeof window !== "undefined" && window.location) {
     const { protocol, hostname } = window.location;
     // Pattern: 8081-sandboxid.region.domain -> 3000-sandboxid.region.domain
     const apiHostname = hostname.replace(/^8081-/, "3000-");

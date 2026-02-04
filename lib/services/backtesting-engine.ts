@@ -3,13 +3,14 @@
  * 
  * Tests trading strategies against historical data to validate performance
  * before deploying to paper or live trading.
+ * 
+ * NOTE: This version uses native TypeScript/JavaScript APIs for historical data
+ * instead of Python scripts, making it compatible with React Native/Expo builds.
  */
 
-import { exec } from "child_process";
-import { promisify } from "util";
 import { TradingRule } from "../trading-store";
-
-const execAsync = promisify(exec);
+import { getFinnhubAPI, FinnhubCandle } from "./finnhub-api";
+import { getAlpacaAPI, AlpacaBar } from "./alpaca-api";
 
 export interface BacktestBar {
   timestamp: string;
@@ -89,32 +90,116 @@ export interface BacktestStrategy {
 }
 
 /**
- * Fetch historical data using yfinance Python script
+ * Convert period string to Unix timestamp range
+ * @param period - Period string like "2y", "1y", "6mo", "3mo", "1mo", "1w"
+ */
+function getPeriodTimestamps(period: string): { from: number; to: number } {
+  const now = Math.floor(Date.now() / 1000);
+  let from: number;
+
+  switch (period.toLowerCase()) {
+    case "2y":
+      from = now - 2 * 365 * 24 * 60 * 60;
+      break;
+    case "1y":
+      from = now - 365 * 24 * 60 * 60;
+      break;
+    case "6mo":
+      from = now - 6 * 30 * 24 * 60 * 60;
+      break;
+    case "3mo":
+      from = now - 3 * 30 * 24 * 60 * 60;
+      break;
+    case "1mo":
+      from = now - 30 * 24 * 60 * 60;
+      break;
+    case "1w":
+      from = now - 7 * 24 * 60 * 60;
+      break;
+    default:
+      // Default to 2 years
+      from = now - 2 * 365 * 24 * 60 * 60;
+  }
+
+  return { from, to: now };
+}
+
+/**
+ * Fetch historical data using Finnhub API (primary) or Alpaca API (fallback)
+ * This replaces the Python script dependency for React Native/Expo compatibility.
  */
 async function fetchHistoricalData(
   symbol: string,
   period: string = "2y",
-  interval: string = "1d"
+  _interval: string = "1d"
 ): Promise<{ success: boolean; data?: BacktestBar[]; error?: string }> {
   try {
-    const { stdout } = await execAsync(
-      `python3 /home/ubuntu/easygeld-pro/scripts/fetch-historical-data.py ${symbol} ${period} ${interval}`
-    );
+    // First try Finnhub API
+    const finnhub = getFinnhubAPI();
+    const { from, to } = getPeriodTimestamps(period);
     
-    const result = JSON.parse(stdout);
-    
-    if (!result.success) {
-      return { success: false, error: result.error };
+    try {
+      const candles = await finnhub.getCandles({
+        symbol: symbol.toUpperCase(),
+        resolution: "D", // Daily candles
+        from,
+        to,
+      });
+
+      if (candles.s === "ok" && candles.c && candles.c.length > 0) {
+        const bars: BacktestBar[] = candles.t.map((timestamp, i) => ({
+          timestamp: new Date(timestamp * 1000).toISOString(),
+          open: candles.o[i],
+          high: candles.h[i],
+          low: candles.l[i],
+          close: candles.c[i],
+          volume: candles.v[i],
+        }));
+
+        return { success: true, data: bars };
+      }
+    } catch (finnhubError) {
+      console.log("Finnhub API failed, trying Alpaca API...", finnhubError);
     }
-    
+
+    // Fallback to Alpaca API
+    try {
+      const alpaca = getAlpacaAPI();
+      const fromDate = new Date(from * 1000).toISOString();
+      const toDate = new Date(to * 1000).toISOString();
+
+      const alpacaBars = await alpaca.getBars({
+        symbol: symbol.toUpperCase(),
+        timeframe: "1Day",
+        start: fromDate,
+        end: toDate,
+        limit: 1000,
+      });
+
+      if (alpacaBars && alpacaBars.length > 0) {
+        const bars: BacktestBar[] = alpacaBars.map((bar: AlpacaBar) => ({
+          timestamp: bar.t,
+          open: bar.o,
+          high: bar.h,
+          low: bar.l,
+          close: bar.c,
+          volume: bar.v,
+        }));
+
+        return { success: true, data: bars };
+      }
+    } catch (alpacaError) {
+      console.log("Alpaca API also failed:", alpacaError);
+    }
+
     return {
-      success: true,
-      data: result.data as BacktestBar[],
+      success: false,
+      error: `Failed to fetch historical data for ${symbol} from both Finnhub and Alpaca APIs`,
     };
   } catch (error: any) {
     return {
       success: false,
-      error: error.message,
+      error: error.message || "Unknown error fetching historical data",
     };
   }
 }

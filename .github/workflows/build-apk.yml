@@ -1,0 +1,90 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+  workflow_dispatch: # Allows manual trigger from GitHub UI
+
+jobs:
+  build:
+    name: Build APK with EAS
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 🏗 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🏗 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: 'npm'
+
+      - name: 🏗 Setup Expo and EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: 🚀 Build APK with EAS
+        run: |
+          eas build --platform android --profile production --non-interactive --no-wait
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+      - name: 📝 Build info
+        run: |
+          echo "✅ Build started successfully!"
+          echo "📱 Check build status at: https://expo.dev/accounts/${{ github.repository_owner }}/projects/aether-trader-pro/builds"
+          echo "⏱️ Build typically takes 15-30 minutes"
+          echo "📥 Download APK from Expo dashboard when complete"
+
+  # Alternative: Build locally with Gradle (no EAS needed, but slower)
+  build-local:
+    name: Build APK Locally (Alternative)
+    runs-on: ubuntu-latest
+    if: false # Set to true to enable local build
+    
+    steps:
+      - name: 🏗 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🏗 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+
+      - name: 🏗 Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: 📦 Install dependencies
+        run: npm ci
+
+      - name: 🔧 Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: 🚀 Build APK
+        run: |
+          npx expo prebuild --platform android
+          cd android
+          ./gradlew assembleRelease
+
+      - name: 📤 Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release
+          path: android/app/build/outputs/apk/release/app-release.apk
+          retention-days: 30
+
+      - name: 📝 Build complete
+        run: |
+          echo "✅ APK built successfully!"
+          echo "📥 Download from: Actions -> Artifacts"

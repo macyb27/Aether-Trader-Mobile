@@ -1,468 +1,199 @@
-# Aether Trader Pro - APK Build Anleitung
+# Aether Trader Pro - APK Build Anleitung (Ohne Sandbox)
 
-Vollständige Anleitung zum Erstellen einer Android APK für Aether Trader Pro ohne Sandbox-Funktionen.
+Vollständige Anleitung zum Erstellen einer Android APK für Aether Trader Pro **ohne** Sandbox-Umgebung.
 
 ---
 
 ## Voraussetzungen
 
-### 1. System Requirements
+### System Requirements
 - **Node.js** 18+ (empfohlen: 22.x)
-- **pnpm** 9+ oder npm
+- **pnpm** 9+ (oder npm / yarn)
 - **Git**
-- **Expo Account** (kostenlos auf expo.dev)
+- **Java JDK** 17+ (für lokalen Gradle-Build)
+- **Android SDK** (für lokalen Build) *oder* **Expo/EAS Account** (für Cloud-Build)
 
-### 2. Expo CLI Installation
+---
+
+## Schnellstart
+
 ```bash
+# 1. Repository klonen
+git clone <repo-url>
+cd <repo-name>
+
+# 2. Dependencies installieren
+pnpm install
+
+# 3. Build-Script ausführen (optional, empfohlen)
+chmod +x FIX_BUILD_FINAL.sh
+./FIX_BUILD_FINAL.sh
+
+# 4. APK bauen (lokaler Gradle-Build)
+npx expo prebuild --platform android --clean
+cd android && chmod +x gradlew && ./gradlew assembleRelease
+```
+
+Die fertige APK liegt unter: `android/app/build/outputs/apk/release/app-release.apk`
+
+---
+
+## Build-Optionen
+
+### Option A: Lokaler Gradle-Build (Empfohlen, kein Account nötig)
+
+**Voraussetzungen:** Java JDK 17+, Android SDK
+
+```bash
+# Native Android-Projekt generieren
+npx expo prebuild --platform android --clean
+
+# APK bauen
+cd android
+chmod +x gradlew
+./gradlew assembleRelease
+
+# APK befindet sich in:
+# android/app/build/outputs/apk/release/app-release.apk
+```
+
+### Option B: EAS Local Build
+
+```bash
+# EAS CLI installieren (einmalig)
+npm install -g eas-cli
+
+# Lokalen Build starten (kein EAS-Account für --local nötig)
+eas build --platform android --profile local --local
+```
+
+### Option C: EAS Cloud Build
+
+```bash
+# EAS CLI installieren und einloggen
 npm install -g eas-cli
 eas login
-```
 
----
-
-## Schritt 1: Repository Klonen
-
-```bash
-# Option A: Standalone Repository
-git clone https://github.com/macyb27/Aether-Trader-Mobile.git
-cd Aether-Trader-Mobile
-
-# Option B: Aus Aethel_Trader_Gens
-git clone https://github.com/macyb27/Aethel_Trader_Gens.git
-cd Aethel_Trader_Gens/mobile
-```
-
----
-
-## Schritt 2: Dependencies Installieren
-
-```bash
-pnpm install
-# oder
-npm install
-```
-
----
-
-## Schritt 3: Sandbox-Funktionen Entfernen
-
-Die App verwendet einige Sandbox-spezifische Features, die für Production entfernt werden müssen:
-
-### 3.1 Python Scripts Entfernen/Ersetzen
-
-**Dateien zu entfernen:**
-- `scripts/fetch-historical-data.py`
-- `scripts/train-rl-model.py`
-
-**Alternative:** Historische Daten via JavaScript/TypeScript laden:
-
-```typescript
-// lib/services/historical-data.ts
-export async function fetchHistoricalData(symbol: string, days: number) {
-  // Option 1: Alpaca API
-  const response = await fetch(
-    `https://data.alpaca.markets/v2/stocks/${symbol}/bars?timeframe=1Day&limit=${days}`,
-    {
-      headers: {
-        'APCA-API-KEY-ID': process.env.ALPACA_API_KEY,
-        'APCA-API-SECRET-KEY': process.env.ALPACA_API_SECRET,
-      },
-    }
-  );
-  
-  // Option 2: Yahoo Finance via API
-  // Option 3: Finnhub Historical Data
-  
-  return response.json();
-}
-```
-
-### 3.2 Command-Line Utilities Entfernen
-
-Die folgenden Utilities sind nur in der Sandbox verfügbar und müssen ersetzt werden:
-
-**Entfernen:**
-- Alle `manus-*` CLI-Aufrufe
-- Shell-basierte Operationen in `lib/`
-
-**Ersetzen durch:**
-- Native JavaScript/TypeScript Implementierungen
-- React Native kompatible Packages
-
-### 3.3 Environment Variables Konfigurieren
-
-Erstelle `.env` Datei im Root:
-
-```bash
-# .env
-ALPACA_API_KEY=your_alpaca_key_here
-ALPACA_API_SECRET=your_alpaca_secret_here
-ALPACA_BASE_URL=https://paper-api.alpaca.markets/v2
-FINNHUB_API_KEY=your_finnhub_key_here
-```
-
-**Wichtig:** Für Production sollten diese Keys über Expo Secrets verwaltet werden:
-
-```bash
-eas secret:create --scope project --name ALPACA_API_KEY --value "your_key"
-eas secret:create --scope project --name ALPACA_API_SECRET --value "your_secret"
-eas secret:create --scope project --name FINNHUB_API_KEY --value "your_key"
-```
-
----
-
-## Schritt 4: App-Konfiguration Anpassen
-
-### 4.1 `app.config.ts` Prüfen
-
-```typescript
-// app.config.ts
-const env = {
-  appName: "Aether Trader Pro",
-  appSlug: "aether-trader-pro",
-  logoUrl: "", // Optional: S3 URL für Logo
-  // ... rest bleibt gleich
-};
-```
-
-### 4.2 Bundle Identifier Anpassen (Optional)
-
-Wenn du eine eigene Bundle ID möchtest:
-
-```typescript
-// app.config.ts
-const env = {
-  // ...
-  iosBundleId: "com.yourcompany.aethertrader",
-  androidPackage: "com.yourcompany.aethertrader",
-};
-```
-
----
-
-## Schritt 5: EAS Build Konfiguration
-
-### 5.1 EAS Projekt Initialisieren
-
-```bash
-eas build:configure
-```
-
-Dies erstellt `eas.json`:
-
-```json
-{
-  "cli": {
-    "version": ">= 5.0.0"
-  },
-  "build": {
-    "development": {
-      "developmentClient": true,
-      "distribution": "internal"
-    },
-    "preview": {
-      "distribution": "internal",
-      "android": {
-        "buildType": "apk"
-      }
-    },
-    "production": {
-      "android": {
-        "buildType": "apk"
-      }
-    }
-  },
-  "submit": {
-    "production": {}
-  }
-}
-```
-
-### 5.2 Build Profile Anpassen
-
-Für APK (nicht AAB):
-
-```json
-{
-  "build": {
-    "production": {
-      "android": {
-        "buildType": "apk",
-        "gradleCommand": ":app:assembleRelease"
-      }
-    }
-  }
-}
-```
-
----
-
-## Schritt 6: APK Bauen
-
-### Option A: Cloud Build (Empfohlen)
-
-```bash
-# Preview Build (schneller, für Testing)
-eas build --platform android --profile preview
-
-# Production Build
+# Cloud-Build starten
 eas build --platform android --profile production
 ```
 
-**Vorteile:**
-- Keine lokale Android SDK Installation nötig
-- Automatische Code Signing
-- Build-Logs in der Cloud
+### Option D: GitHub Actions (CI/CD)
 
-**Nach dem Build:**
-- APK wird auf Expo Servers gehostet
-- Download-Link wird in Terminal angezeigt
-- APK kann direkt auf Android-Geräte installiert werden
+Das Repository enthält einen GitHub Actions Workflow unter `.github/workflows/build-apk.yml`.
 
-### Option B: Lokaler Build
-
-**Voraussetzungen:**
-- Android Studio installiert
-- Android SDK konfiguriert
-- Java JDK 17+
-
-```bash
-# Lokalen Build starten
-eas build --platform android --profile production --local
-```
+1. Push auf `main` / `master` oder manueller Trigger
+2. APK wird als Artifact heruntergeladen
+3. Keine EAS/Sandbox-Abhängigkeit
 
 ---
 
-## Schritt 7: Code Signing (Production)
+## Environment Variables (Optional)
 
-Für Production Builds benötigst du einen Keystore:
-
-### 7.1 Keystore Erstellen
+Für volle Backend-Konnektivität, erstelle eine `.env` Datei:
 
 ```bash
-keytool -genkeypair -v -storetype PKCS12 \
-  -keystore aether-trader.keystore \
-  -alias aether-trader \
-  -keyalg RSA \
-  -keysize 2048 \
-  -validity 10000
+# .env
+EXPO_PUBLIC_API_BASE_URL=https://your-api-server.com
+EXPO_PUBLIC_APP_ID=your_app_id
+EXPO_PUBLIC_OAUTH_PORTAL_URL=https://your-oauth-portal.com
+EXPO_PUBLIC_OAUTH_SERVER_URL=https://your-oauth-server.com
 ```
 
-### 7.2 Keystore zu EAS Hinzufügen
+**Ohne `.env` Datei:** Die App läuft im Offline-Modus mit lokalen Daten (AsyncStorage).
 
-```bash
-eas credentials
-# Wähle: Android > Production > Keystore > Upload
-```
-
-Oder in `eas.json`:
-
-```json
-{
-  "build": {
-    "production": {
-      "android": {
-        "buildType": "apk",
-        "credentialsSource": "local"
-      }
-    }
-  }
-}
-```
+Für CI/CD-Builds können diese als Secrets konfiguriert werden:
+- GitHub Actions: Settings -> Secrets -> `API_BASE_URL`, `APP_ID`
+- EAS: `eas secret:create --scope project --name API_BASE_URL --value "https://..."`
 
 ---
 
-## Schritt 8: APK Testen
+## Was funktioniert ohne Sandbox
 
-### 8.1 APK auf Gerät Installieren
+| Feature | Status | Anmerkung |
+|---------|--------|-----------|
+| React Native / Expo App | Funktioniert | Vollständig standalone |
+| TensorFlow.js (ML) | Funktioniert | Läuft direkt auf dem Gerät |
+| Alpaca & Finnhub APIs | Funktioniert | API-Keys in .env konfigurieren |
+| AsyncStorage (lokale Daten) | Funktioniert | Offline-First |
+| Push Notifications | Funktioniert | expo-notifications |
+| Genetic Algorithms | Funktioniert | Reine JavaScript-Implementierung |
+| Transfer Learning | Funktioniert | TensorFlow.js |
+| OAuth / Login | Funktioniert | Deep-Link-basiert |
+| Trading Dashboard | Funktioniert | Vollständig |
+| Onboarding | Funktioniert | Vollständig |
+
+---
+
+## APK testen
+
+### Auf Gerät installieren
 
 ```bash
-# Via ADB
-adb install path/to/aether-trader.apk
+# Via ADB (USB-Debugging aktiviert)
+adb install android/app/build/outputs/apk/release/app-release.apk
 
-# Oder: APK direkt auf Gerät kopieren und öffnen
+# Oder: APK direkt auf das Gerät kopieren und öffnen
+# (Erfordert "Unbekannte Quellen" / "Install unknown apps" in den Android-Einstellungen)
 ```
 
-### 8.2 Testing Checklist
+### Testing Checklist
 
 - [ ] App startet ohne Crashes
 - [ ] Onboarding Flow funktioniert
-- [ ] API-Verbindungen funktionieren (Alpaca, Finnhub)
+- [ ] Dashboard zeigt Daten an
 - [ ] Trading-Features funktionieren
 - [ ] Push-Benachrichtigungen funktionieren
-- [ ] Daten werden lokal gespeichert (AsyncStorage)
-- [ ] RL-Training funktioniert (falls implementiert)
+- [ ] Daten werden lokal gespeichert
 - [ ] Keine Sandbox-Fehler in Logs
-
----
-
-## Schritt 9: Optimierungen für Production
-
-### 9.1 Bundle Size Reduzieren
-
-```bash
-# Analyze bundle
-npx expo-doctor
-
-# Remove unused dependencies
-pnpm prune
-```
-
-### 9.2 Performance Optimierung
-
-**In `app.config.ts`:**
-
-```typescript
-export default {
-  // ...
-  android: {
-    // ...
-    enableProguardInReleaseBuilds: true,
-    enableShrinkResourcesInReleaseBuilds: true,
-  },
-};
-```
-
-### 9.3 Hermes Engine Aktivieren
-
-Hermes verbessert Startup-Zeit und reduziert Memory Usage:
-
-```json
-// package.json
-{
-  "expo": {
-    "jsEngine": "hermes"
-  }
-}
-```
 
 ---
 
 ## Troubleshooting
 
-### Problem: "Module not found" Fehler
-
-**Lösung:**
+### "Module not found" Fehler
 ```bash
 rm -rf node_modules
 pnpm install
+npx expo prebuild --platform android --clean
 ```
 
-### Problem: Build schlägt fehl mit "Gradle error"
-
-**Lösung:**
+### Gradle Build schlägt fehl
 ```bash
-# Gradle Cache löschen
 cd android && ./gradlew clean
-cd .. && eas build --platform android --clear-cache
+cd .. && npx expo prebuild --platform android --clean
+cd android && ./gradlew assembleRelease
 ```
 
-### Problem: API Keys funktionieren nicht
+### APK ist zu groß (>100MB)
+1. In `app.config.ts` sind bereits nur `armeabi-v7a` und `arm64-v8a` Architekturen konfiguriert
+2. Ungenutzte Assets aus `assets/` entfernen
+3. Für Play Store: AAB statt APK verwenden
 
-**Lösung:**
-1. Prüfe `.env` Datei
-2. Prüfe Expo Secrets: `eas secret:list`
-3. Stelle sicher, dass `dotenv` korrekt konfiguriert ist
-
-### Problem: APK ist zu groß (>100MB)
-
-**Lösung:**
-1. Entferne ungenutzte Assets in `assets/`
-2. Aktiviere Proguard (siehe Optimierungen)
-3. Verwende AAB statt APK für Play Store
+### API-Verbindung funktioniert nicht
+1. Prüfe `.env` Datei: `EXPO_PUBLIC_API_BASE_URL` muss gesetzt sein
+2. Stelle sicher, dass der API-Server erreichbar ist
+3. Ohne API-URL läuft die App im Offline-Modus
 
 ---
 
-## Deployment Optionen
+## Projektstruktur (APK-relevant)
 
-### Option 1: Direkter APK Download
-
-- APK von EAS Build herunterladen
-- Via Email/Link an Nutzer verteilen
-- Installation erfordert "Unbekannte Quellen" aktiviert
-
-### Option 2: Google Play Store (AAB)
-
-```bash
-# AAB statt APK bauen
-eas build --platform android --profile production
-
-# Zu Play Store hochladen
-eas submit --platform android
 ```
-
-### Option 3: Internal Testing (Firebase App Distribution)
-
-```bash
-# Firebase CLI installieren
-npm install -g firebase-tools
-
-# APK zu Firebase hochladen
-firebase appdistribution:distribute \
-  path/to/aether-trader.apk \
-  --app YOUR_FIREBASE_APP_ID \
-  --groups testers
+├── app/                    # Expo Router Seiten
+│   ├── (tabs)/             # Tab-Navigation
+│   ├── onboarding.tsx      # Onboarding-Screens
+│   └── _layout.tsx         # Root Layout
+├── components/             # Wiederverwendbare UI-Komponenten
+├── constants/              # Konfiguration & Konstanten
+├── lib/                    # Business Logic
+│   ├── agents/             # Trading-Agenten (JS/TS)
+│   ├── services/           # API-Services
+│   ├── _core/              # Auth, API, Theme
+│   └── *.ts                # Stores, Notifications, etc.
+├── assets/                 # Bilder & Icons
+├── app.config.ts           # Expo-Konfiguration
+├── eas.json                # EAS Build-Profile
+├── metro.config.js         # Metro Bundler
+└── FIX_BUILD_FINAL.sh      # Build-Vorbereitung
 ```
-
----
-
-## Wichtige Hinweise
-
-### Sandbox-Features die NICHT funktionieren:
-
-❌ Python Scripts (`train-rl-model.py`, `fetch-historical-data.py`)
-❌ Command-line Utilities (`manus-*`)
-❌ Shell Commands in Code
-❌ Server-seitige Features (wenn nicht deployed)
-
-### Features die FUNKTIONIEREN:
-
-✅ React Native/Expo App
-✅ TensorFlow.js (ML im Browser/Mobile)
-✅ Alpaca & Finnhub APIs
-✅ AsyncStorage (lokale Daten)
-✅ Push Notifications
-✅ Genetic Algorithms (JavaScript)
-✅ Transfer Learning (TensorFlow.js)
-
----
-
-## Alternative: Web-Version Deployen
-
-Falls APK-Build Probleme macht, kann die App auch als Progressive Web App (PWA) deployed werden:
-
-```bash
-# Web Build
-npx expo export:web
-
-# Deploy zu Vercel/Netlify
-vercel deploy
-# oder
-netlify deploy
-```
-
----
-
-## Support & Dokumentation
-
-- **Expo Docs:** https://docs.expo.dev
-- **EAS Build:** https://docs.expo.dev/build/introduction/
-- **React Native:** https://reactnative.dev
-- **TensorFlow.js:** https://www.tensorflow.org/js
-
----
-
-## Zusammenfassung
-
-1. Repository klonen
-2. Dependencies installieren (`pnpm install`)
-3. Sandbox-Features entfernen/ersetzen
-4. Environment Variables konfigurieren
-5. EAS Build konfigurieren (`eas build:configure`)
-6. APK bauen (`eas build --platform android --profile production`)
-7. APK herunterladen und auf Gerät installieren
-8. Testen und optimieren
-
-**Geschätzte Build-Zeit:** 15-30 Minuten (Cloud Build)
-
-**Geschätzte APK-Größe:** 50-80 MB (optimiert)

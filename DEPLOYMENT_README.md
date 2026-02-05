@@ -49,18 +49,16 @@ Hypothesis → Backtest (2+ Jahre) → Paper Trading (50+ Trades, 14 Tage) → V
 
 ### Voraussetzungen
 - Node.js 22+
-- Python 3.11+
-- pnpm
+- pnpm 9+
+- Java JDK 17+ (für lokalen APK-Build)
+- Android SDK (für lokalen APK-Build)
 
 ### Setup
 ```bash
 # Dependencies installieren
 pnpm install
 
-# Python Packages installieren
-sudo pip3 install yfinance pandas numpy
-
-# API Keys konfigurieren (via webdev_request_secrets):
+# API Keys konfigurieren (via .env Datei oder CI Secrets):
 # - ALPACA_API_KEY
 # - ALPACA_API_SECRET
 # - ALPACA_BASE_URL (https://paper-api.alpaca.markets für Paper Trading)
@@ -72,11 +70,6 @@ sudo pip3 install yfinance pandas numpy
 ### Development starten
 ```bash
 pnpm dev
-```
-
-### RL-Modell trainieren
-```bash
-python3 scripts/train-rl-model.py AAPL 100
 ```
 
 ### Tests ausführen
@@ -109,8 +102,9 @@ easygeld-pro/
 │   ├── transfer-learning.ts       # TensorFlow.js ML Models
 │   └── notifications.ts           # Push Notifications
 ├── scripts/
-│   ├── train-rl-model.py          # RL Training Script
-│   └── fetch-historical-data.py   # Historical Data Fetcher
+│   ├── generate_qr.mjs            # QR Code Generator
+│   ├── load-env.js                # Environment Variable Loader
+│   └── reset-project.js           # Project Reset Script
 ├── app/
 │   ├── (tabs)/
 │   │   ├── index.tsx              # Dashboard
@@ -245,4 +239,4 @@ Für Issues oder Fragen:
 
 ---
 
-**Gebaut mit:** React Native, Expo, TensorFlow.js, TypeScript, Python, yfinance, Alpaca API, Finnhub API
+**Gebaut mit:** React Native, Expo, TensorFlow.js, TypeScript, Alpaca API, Finnhub API

@@ -37,6 +37,7 @@ export default function RootLayout() {
 
   // Initialize Manus runtime for cookie injection from parent container
   useEffect(() => {
+    if (Platform.OS !== "web") return;
     initManusRuntime();
   }, []);
 

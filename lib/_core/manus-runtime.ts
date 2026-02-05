@@ -38,6 +38,7 @@ interface SpacePreviewerMessage {
 
 function isInIframe(): boolean {
   if (Platform.OS !== "web") return false;
+  if (typeof window === "undefined") return false;
   try {
     return window.self !== window.top;
   } catch {

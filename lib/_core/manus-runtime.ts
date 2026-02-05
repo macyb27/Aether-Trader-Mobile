@@ -1,14 +1,12 @@
 /**
- * Manus Runtime - Communication layer between Expo web app and parent container (next-agent-webapp)
+ * Runtime Bridge - Communication layer between Expo web app and parent container.
  *
- * Simplified flow:
- * 1. initManusRuntime() called
- * 2. Send 'appDevServerReady' to parent to signal app is ready
+ * For standalone APK/iOS builds this module is entirely no-op:
+ *   - All public functions check for web platform AND iframe context before executing.
+ *   - On native platforms (Android / iOS) every function returns immediately.
  *
- * User will manually login via the app's login page - no automatic cookie injection.
- * 
- * NOTE: For standalone APK/iOS builds, this runtime is effectively no-op.
- * All functions check for web platform and iframe context before executing.
+ * The module is kept so that the rest of the codebase can import it without
+ * conditional compilation or platform-specific entry points.
  */
 
 import { Platform } from "react-native";
@@ -19,7 +17,7 @@ const DEBUG = __DEV__ ?? false;
 const log = (msg: string) => {
   if (!DEBUG) return;
   const ts = new Date().toISOString();
-  console.log(`[ManusRuntime ${ts}] ${msg}`);
+  console.log(`[RuntimeBridge ${ts}] ${msg}`);
 };
 
 type MessageType = "appDevServerReady";
@@ -50,7 +48,6 @@ function isWeb(): boolean {
 }
 
 function sendToParent(type: MessageType, payload: Record<string, unknown> = {}): void {
-  // NOTE: Validate parent origin if we need to transfer sensitive data
   if (!isWeb() || !isInIframe()) return;
 
   const message: SpacePreviewerMessage = {
@@ -74,7 +71,6 @@ function isValidInsets(payload: Record<string, unknown>): payload is SafeAreaIns
 }
 
 function handleMessage(event: MessageEvent<unknown>): void {
-  // NOTE: Validate event.origin if we need to transfer sensitive data
   const data = event.data as SpacePreviewerMessage | undefined;
   if (!data || data.type !== "SpacePreviewerChannel") return;
 
@@ -86,13 +82,14 @@ function handleMessage(event: MessageEvent<unknown>): void {
     const frame = { x: 0, y: 0, width: window.innerWidth, height: window.innerHeight };
     safeAreaCallback({ insets, frame });
     log(
-      `Received safe area insets from parent: top=${insets.top}, bottom=${insets.bottom}, left=${insets.left}, right=${insets.right}`,
+      `Received safe area insets: top=${insets.top}, bottom=${insets.bottom}, left=${insets.left}, right=${insets.right}`,
     );
   }
 }
 
 /**
- * Subscribe to safe area updates from the parent container.
+ * Subscribe to safe area updates from a parent container (web iframe only).
+ * No-op on native platforms.
  */
 export function subscribeSafeAreaInsets(callback: SafeAreaCallback): () => void {
   safeAreaCallback = callback;
@@ -104,20 +101,23 @@ export function subscribeSafeAreaInsets(callback: SafeAreaCallback): () => void 
 }
 
 /**
- * Initialize Manus Runtime - just notifies parent that app is ready
+ * Initialize the runtime bridge.
+ * On native platforms (standalone APK / iOS) this is a no-op.
+ * On web inside an iframe it notifies the parent that the app is ready.
  */
 export function initManusRuntime(): void {
   if (!isWeb() || !isInIframe()) return;
   if (initialized) return;
   initialized = true;
 
-  log("initManusRuntime called");
+  log("Runtime bridge initialized (web iframe mode)");
   window.addEventListener("message", handleMessage);
   sendToParent("appDevServerReady", {});
 }
 
 /**
- * Check if running inside preview iframe
+ * Check if running inside a preview iframe (web only).
+ * Always returns false on native platforms.
  */
 export function isRunningInPreviewIframe(): boolean {
   return isWeb() && isInIframe();

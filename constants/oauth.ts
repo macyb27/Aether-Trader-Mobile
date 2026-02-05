@@ -25,48 +25,61 @@ export const OWNER_NAME = env.ownerName;
 export const API_BASE_URL = env.apiBaseUrl;
 
 /**
- * Get the API base URL, deriving from current hostname if not set.
- * 
- * For production/standalone APK builds:
- * - Set EXPO_PUBLIC_API_BASE_URL environment variable to your production API URL
- * 
- * For development (sandbox):
- * - Metro runs on 8081, API server runs on 3000
- * - URL pattern: https://PORT-sandboxid.region.domain
+ * Get the API base URL for network requests.
+ *
+ * Resolution order:
+ * 1. EXPO_PUBLIC_API_BASE_URL env var (recommended for production APK builds)
+ * 2. Web: derive from current hostname (development convenience)
+ * 3. Empty string (app runs in offline / local-only mode)
+ *
+ * For standalone APK builds, set EXPO_PUBLIC_API_BASE_URL to your production
+ * API server URL (e.g. "https://api.example.com").
  */
 export function getApiBaseUrl(): string {
-  // If API_BASE_URL is set, use it (production builds should use this)
+  // If API_BASE_URL is set, use it (production / standalone builds should use this)
   if (API_BASE_URL) {
     return API_BASE_URL.replace(/\/$/, "");
   }
 
   // Native platforms (Android/iOS) - require explicit API URL configuration
   if (ReactNative.Platform.OS !== "web") {
-    // For native builds, if no API_BASE_URL is configured,
-    // the app will work in offline mode with local data only
+    // For standalone APK builds without a configured API URL,
+    // the app operates in offline mode with local data only.
     console.warn(
       "[OAuth] No API_BASE_URL configured for native platform. " +
-      "Set EXPO_PUBLIC_API_BASE_URL for full functionality."
+      "The app will run in offline mode. " +
+      "Set EXPO_PUBLIC_API_BASE_URL for full backend connectivity."
     );
     return "";
   }
 
-  // On web, derive from current hostname by replacing port 8081 with 3000
+  // On web, try to derive from current hostname for development convenience.
+  // This handles both sandbox (8081-sandboxid -> 3000-sandboxid) and
+  // standard localhost (localhost:8081 -> localhost:3000) patterns.
   if (typeof window !== "undefined" && window.location) {
-    const { protocol, hostname } = window.location;
-    // Pattern: 8081-sandboxid.region.domain -> 3000-sandboxid.region.domain
+    const { protocol, hostname, port } = window.location;
+
+    // Standard localhost development: Metro on 8081, API on 3000
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
+      if (port === "8081") {
+        return `${protocol}//${hostname}:3000`;
+      }
+    }
+
+    // Cloud / hosted development environment pattern:
+    // 8081-<id>.<region>.<domain> -> 3000-<id>.<region>.<domain>
     const apiHostname = hostname.replace(/^8081-/, "3000-");
     if (apiHostname !== hostname) {
       return `${protocol}//${apiHostname}`;
     }
   }
 
-  // Fallback to empty (will use relative URL)
+  // Fallback to empty (will use relative URL or offline mode)
   return "";
 }
 
 export const SESSION_TOKEN_KEY = "app_session_token";
-export const USER_INFO_KEY = "manus-runtime-user-info";
+export const USER_INFO_KEY = "app_user_info";
 
 const encodeState = (value: string) => {
   if (typeof globalThis.btoa === "function") {

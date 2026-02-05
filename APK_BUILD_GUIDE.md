@@ -99,6 +99,10 @@ ALPACA_API_KEY=your_alpaca_key_here
 ALPACA_API_SECRET=your_alpaca_secret_here
 ALPACA_BASE_URL=https://paper-api.alpaca.markets/v2
 FINNHUB_API_KEY=your_finnhub_key_here
+# Optional (standalone APK)
+EXPO_PUBLIC_APP_SCHEME=aethertrader
+EXPO_PUBLIC_IOS_BUNDLE_ID=com.aethertrader.app
+EXPO_PUBLIC_ANDROID_PACKAGE=com.aethertrader.app
 ```
 
 **Wichtig:** Für Production sollten diese Keys über Expo Secrets verwaltet werden:
@@ -118,24 +122,25 @@ eas secret:create --scope project --name FINNHUB_API_KEY --value "your_key"
 ```typescript
 // app.config.ts
 const env = {
-  appName: "Aether Trader Pro",
-  appSlug: "aether-trader-pro",
+  appName: "Aether Trader",
+  appSlug: "easygeld-pro",
   logoUrl: "", // Optional: S3 URL für Logo
+  scheme: process.env.EXPO_PUBLIC_APP_SCHEME ?? "aethertrader",
+  iosBundleId: process.env.EXPO_PUBLIC_IOS_BUNDLE_ID ?? "com.aethertrader.app",
+  androidPackage: process.env.EXPO_PUBLIC_ANDROID_PACKAGE ?? "com.aethertrader.app",
   // ... rest bleibt gleich
 };
 ```
 
 ### 4.2 Bundle Identifier Anpassen (Optional)
 
-Wenn du eine eigene Bundle ID möchtest:
+Wenn du eine eigene Bundle ID möchtest, setze die Env-Variablen
+`EXPO_PUBLIC_IOS_BUNDLE_ID` und `EXPO_PUBLIC_ANDROID_PACKAGE` (oder passe sie
+direkt in `app.config.ts` an):
 
-```typescript
-// app.config.ts
-const env = {
-  // ...
-  iosBundleId: "com.yourcompany.aethertrader",
-  androidPackage: "com.yourcompany.aethertrader",
-};
+```bash
+EXPO_PUBLIC_IOS_BUNDLE_ID=com.yourcompany.aethertrader
+EXPO_PUBLIC_ANDROID_PACKAGE=com.yourcompany.aethertrader
 ```
 
 ---

@@ -2,13 +2,8 @@
 import "./scripts/load-env.js";
 import type { ExpoConfig } from "expo/config";
 
-// Bundle ID format: space.manus.<project_name_dots>.<timestamp>
-// e.g., "my-app" created at 2024-01-15 10:30:45 -> "space.manus.my.app.t20240115103045"
-const bundleId = "space.manus.easygeld.pro.t20260107222939";
-// Extract timestamp from bundle ID and prefix with "manus" for deep link scheme
-// e.g., "space.manus.my.app.t20240115103045" -> "manus20240115103045"
-const timestamp = bundleId.split(".").pop()?.replace(/^t/, "") ?? "";
-const schemeFromBundleId = `manus${timestamp}`;
+const DEFAULT_APP_SCHEME = "aethertrader";
+const DEFAULT_BUNDLE_ID = "com.aethertrader.app";
 
 const env = {
   // App branding - update these values directly (do not use env vars)
@@ -17,9 +12,9 @@ const env = {
   // S3 URL of the app logo - set this to the URL returned by generate_image when creating custom logo
   // Leave empty to use the default icon from assets/images/icon.png
   logoUrl: "https://files.manuscdn.com/user_upload_by_module/session_file/310419663031350426/RSqYbBmXlwqmLior.png",
-  scheme: schemeFromBundleId,
-  iosBundleId: bundleId,
-  androidPackage: bundleId,
+  scheme: process.env.EXPO_PUBLIC_APP_SCHEME ?? DEFAULT_APP_SCHEME,
+  iosBundleId: process.env.EXPO_PUBLIC_IOS_BUNDLE_ID ?? DEFAULT_BUNDLE_ID,
+  androidPackage: process.env.EXPO_PUBLIC_ANDROID_PACKAGE ?? DEFAULT_BUNDLE_ID,
 };
 
 const config: ExpoConfig = {

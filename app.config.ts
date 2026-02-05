@@ -31,6 +31,15 @@ const config: ExpoConfig = {
   scheme: env.scheme,
   userInterfaceStyle: "automatic",
   newArchEnabled: true,
+  // Extra config for standalone builds - includes EAS project metadata
+  extra: {
+    eas: {
+      // This ID is used for EAS Build and Updates; set to your own project ID if using EAS
+      projectId: process.env.EAS_PROJECT_ID ?? "",
+    },
+    // Runtime environment flag - useful for distinguishing sandbox vs standalone
+    appEnv: process.env.APP_ENV ?? "standalone",
+  },
   ios: {
     supportsTablet: true,
     bundleIdentifier: env.iosBundleId,
